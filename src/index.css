@@ -1,0 +1,696 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------
+   Cabinet Grotesk — three weights only. Regular carries body,
+   Medium carries labels and UI, Bold carries display.
+   --------------------------------------------------------------- */
+@font-face {
+  font-family: "Cabinet Grotesk";
+  src: url("/fonts/CabinetGrotesk-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Cabinet Grotesk";
+  src: url("/fonts/CabinetGrotesk-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Cabinet Grotesk";
+  src: url("/fonts/CabinetGrotesk-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@theme {
+  --font-sans: "Cabinet Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+
+  --radius-tile: 22px;
+  --radius-chip: 12px;
+
+  /* The bento gutter. Small gap against large radius IS the identity. */
+  --spacing-gutter: 6px;
+
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /*
+   * A real damped spring, as a list of samples. `linear()` has been in every
+   * modern browser since 2024, which means spring physics now costs zero
+   * bytes — the exact thing an animation library would otherwise have been
+   * hired for on a project whose whole argument is that it wrote its own
+   * maths. Damping 0.62 at 1.35 oscillations: one overshoot of 8%, then
+   * still. Anything bouncier reads as a toy.
+   */
+  --ease-spring: linear(0.0, 0.0906 5.6%, 0.2913 11.1%, 0.5201 16.7%, 0.7269 22.2%, 0.8873 27.8%, 0.9953 33.3%, 1.0563 38.9%, 1.081 44.4%, 1.0814 50%, 1.0682 55.6%, 1.0496 61.1%, 1.031 66.7%, 1.0155 72.2%, 1.0043 77.8%, 0.9974 83.3%, 0.9939 88.9%, 0.993 94.4%, 1.0);
+}
+
+/* ---------------------------------------------------------------
+   Runtime palette. Every one of these is overwritten from JS on
+   each palette change (see useChrome). The values here are only
+   the pre-hydration frame — they must still be a valid, AA-passing
+   palette on their own.
+   --------------------------------------------------------------- */
+:root {
+  --bg: oklch(0.964 0.005 350);
+  --surface: oklch(0.998 0.001 350);
+  --bench: oklch(0.995 0 0);
+  --ink: oklch(0.375 0.005 350);
+  --muted: oklch(0.537 0.005 350);
+  --line: oklch(0.885 0.007 350);
+  --accent: oklch(0.55 0.095 180);
+  --accent-ink: oklch(1 0 0);
+
+  color-scheme: light;
+}
+
+@layer base {
+  * {
+    border-color: var(--line);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-weight: 400;
+    font-synthesis-weight: none;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /*
+   * The repaint. This is the one line the whole story page is selling —
+   * "change the palette, watch everything recalculate" — and it used to be a
+   * cut: `body` cross-faded its own two colours and every element inside it
+   * snapped, because a transition only runs where it is declared and every
+   * surface, hairline, figure and swatch reads its colour from a variable on
+   * a different node.
+   *
+   * So it is declared on everything. It costs nothing while the values are
+   * still: a transition on a property that is not changing does not run.
+   *
+   * The duration is the studio's, not a longer cinematic one. The same rule
+   * paints a tool, and a tool that takes a third of a second to answer a
+   * button feels broken however pretty the fade is.
+   *
+   * Colour properties only. Nothing here transitions layout, so the pinned
+   * strip's per-frame geometry is untouched by it.
+   *
+   * One consequence worth knowing about, because it has cost time twice:
+   * while a repaint is in flight the contrast auditor is reading colours that
+   * are mid-fade, and reports failures that are not real. The audit script
+   * cancels transitions before it measures, for exactly this reason.
+   */
+  body,
+  body *,
+  body *::before,
+  body *::after {
+    transition:
+      background-color 260ms var(--ease-out-quint),
+      border-color 260ms var(--ease-out-quint),
+      color 260ms var(--ease-out-quint),
+      fill 260ms var(--ease-out-quint),
+      stroke 260ms var(--ease-out-quint);
+  }
+
+  /* Numerals are measurements. They get the mono face, everywhere. */
+  .tabular {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+  }
+
+  h1, h2, h3 {
+    text-wrap: balance;
+    letter-spacing: -0.02em;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* The seed input's native swatch well, stripped of its chrome. */
+  input[type="color"] {
+    -webkit-appearance: none;
+    appearance: none;
+    border: none;
+    padding: 0;
+    background: none;
+    cursor: pointer;
+  }
+  input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+  input[type="color"]::-webkit-color-swatch { border: none; border-radius: inherit; }
+  input[type="color"]::-moz-color-swatch { border: none; border-radius: inherit; }
+
+  ::selection {
+    background: var(--accent);
+    color: var(--accent-ink);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ---------------------------------------------------------------
+   Inspect. The deep tools, folded into a native <details>. The
+   summary is a bar you can press; the marker is replaced by a
+   chevron that turns when it opens.
+   --------------------------------------------------------------- */
+.inspect-summary {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  cursor: pointer;
+  list-style: none;
+  border-radius: 22px;
+  background: var(--surface);
+  padding: 0.85rem 1.25rem;
+  user-select: none;
+}
+.inspect-summary > :first-child {
+  margin-right: auto;
+}
+.inspect-summary::-webkit-details-marker {
+  display: none;
+}
+.inspect-summary::after {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-right: 1.6px solid var(--muted);
+  border-bottom: 1.6px solid var(--muted);
+  transform: rotate(45deg);
+  transition: transform 200ms var(--ease-out-quint);
+}
+.inspect[open] .inspect-summary::after {
+  transform: rotate(-135deg);
+}
+/* `.bento { display: grid }` is a class selector, so it out-specifies the UA
+   rule that hides a closed <details>'s content — the grid would show even when
+   collapsed. Hide it back, with enough specificity to win. */
+.inspect:not([open]) .bento {
+  display: none;
+}
+
+/* ---------------------------------------------------------------
+   Studio motion (redesign). Each one is feedback, never decoration:
+   the palette morphs the preview it repaints, a new context or
+   verdict fades in from just below, and nothing here paces content
+   that was not already on screen. Reduced motion drops them to cuts.
+   :where() keeps specificity at zero so inline colours still win.
+   --------------------------------------------------------------- */
+[aria-label="See it working"] :where(div, span, h1, h2, h3, h4, p, li, article, img),
+[aria-label="Know it is usable"] :where(span, div, li) {
+  transition:
+    background-color 450ms var(--ease-out-quint),
+    color 450ms var(--ease-out-quint),
+    border-color 450ms var(--ease-out-quint);
+}
+
+.panel-in {
+  animation: panel-in 320ms var(--ease-out-quint) backwards;
+}
+@keyframes panel-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [aria-label="See it working"] :where(div, span, h1, h2, h3, h4, p, li, article, img),
+  [aria-label="Know it is usable"] :where(span, div, li) {
+    transition: none;
+  }
+  .panel-in {
+    animation: none;
+  }
+}
+
+/* ---------------------------------------------------------------
+   The bento.
+
+   Size follows content, which is the system's own rule and was the
+   thing this grid was quietly breaking: six tiles of near-identical
+   weight give the eye nowhere to land, so it falls back to reading
+   the text. The site preview and the contrast matrix are the two
+   objects that carry the argument, so they get the space; intake,
+   scale and export are errands and are sized like errands.
+
+   The verdict holds a full-height rail on the right at desktop. It
+   is a list that grows, and a list that grows wants a column.
+   --------------------------------------------------------------- */
+.bento {
+  display: grid;
+  gap: var(--spacing-gutter);
+  grid-template-columns: 1fr;
+  grid-template-areas:
+    "matrix"
+    "critique"
+    "ramp"
+    "export";
+}
+
+@media (min-width: 900px) {
+  .bento {
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    grid-template-areas:
+      "matrix   critique"
+      "ramp     critique"
+      "export   critique";
+  }
+}
+
+@media (min-width: 1240px) {
+  .bento {
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.15fr) minmax(300px, 0.85fr);
+    grid-template-areas:
+      "matrix  ramp    critique"
+      "matrix  export  critique";
+  }
+}
+
+/* Assigned by order rather than by class, so the tiles stay unaware of
+   where they sit. The bento IS an ordered layout; the order is the API —
+   moving a tile in App.tsx moves it on screen. */
+.bento > :nth-child(1) { grid-area: matrix; }
+.bento > :nth-child(2) { grid-area: critique; }
+.bento > :nth-child(3) { grid-area: ramp; }
+.bento > :nth-child(4) { grid-area: export; }
+
+/* ---------------------------------------------------------------
+   The studio's own motion. Every one of these is a readout: the bar
+   compresses while the generator is searching and springs open on
+   the winner, the score lands when it changes. Nothing here paces
+   content that was not already computed.
+   --------------------------------------------------------------- */
+.bar-spring {
+  transform-origin: 50% 100%;
+  transition: transform 560ms var(--ease-spring);
+}
+
+/* Power on. The bar deals itself in and the tiles land behind it, once per
+   session rather than once per load — the story page's entry sequence runs
+   every time because it is theatre, and the studio's is polish, which grates
+   by the third visit. */
+.bar-deal > * { animation: swatch-deal 540ms var(--ease-out-quint) backwards; }
+.bar-deal > :nth-child(1) { animation-delay: 0ms; }
+.bar-deal > :nth-child(2) { animation-delay: 45ms; }
+.bar-deal > :nth-child(3) { animation-delay: 90ms; }
+.bar-deal > :nth-child(4) { animation-delay: 135ms; }
+.bar-deal > :nth-child(5) { animation-delay: 180ms; }
+.bar-deal > :nth-child(6) { animation-delay: 225ms; }
+.bar-deal > :nth-child(7) { animation-delay: 270ms; }
+.bar-deal > :nth-child(8) { animation-delay: 315ms; }
+
+.bento-arrive > * { animation: tile-arrive 500ms var(--ease-out-quint) backwards; }
+.bento-arrive > :nth-child(1) { animation-delay: 150ms; }
+.bento-arrive > :nth-child(2) { animation-delay: 190ms; }
+.bento-arrive > :nth-child(3) { animation-delay: 230ms; }
+.bento-arrive > :nth-child(4) { animation-delay: 270ms; }
+.bento-arrive > :nth-child(5) { animation-delay: 310ms; }
+.bento-arrive > :nth-child(6) { animation-delay: 350ms; }
+
+/*
+  The repaint ripple.
+
+  Every tile in the bento re-solves its colours when the palette changes, and
+  until now they all did it silently and simultaneously, which reads as a cut.
+  Staggering by grid order lets the change arrive *from* the palette bar rather
+  than happening everywhere at once — the tile nearest the bar settles first.
+
+  It is deliberately almost nothing: six tenths of a percent of scale over
+  380ms. The colours are already changing, and that is the event; this only
+  says which direction it came from. Anything larger competes with the thing it
+  is announcing.
+*/
+.bento-repaint > * { animation: tile-repaint 380ms var(--ease-out-quint) backwards; }
+.bento-repaint > :nth-child(1) { animation-delay: 0ms; }
+.bento-repaint > :nth-child(2) { animation-delay: 45ms; }
+.bento-repaint > :nth-child(3) { animation-delay: 90ms; }
+.bento-repaint > :nth-child(4) { animation-delay: 135ms; }
+.bento-repaint > :nth-child(5) { animation-delay: 90ms; }
+.bento-repaint > :nth-child(6) { animation-delay: 180ms; }
+
+@keyframes tile-repaint {
+  from { transform: scale(0.994); }
+  to   { transform: scale(1); }
+}
+
+@keyframes swatch-deal {
+  from { opacity: 0; transform: translate3d(0, 38px, 0); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes tile-arrive {
+  from { opacity: 0; transform: translate3d(0, 12px, 0); }
+  to   { opacity: 1; transform: none; }
+}
+
+.score-pop {
+  animation: score-pop 520ms var(--ease-spring) both;
+}
+
+@keyframes score-pop {
+  from { transform: translate3d(0, 0.18em, 0); opacity: 0.35; }
+  to   { transform: none; opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bar-spring { transform: none !important; }
+  /* Power on. The bar deals itself in and the tiles land behind it, once per
+   session rather than once per load — the story page's entry sequence runs
+   every time because it is theatre, and the studio's is polish, which grates
+   by the third visit. */
+.bar-deal > * { animation: swatch-deal 540ms var(--ease-out-quint) backwards; }
+.bar-deal > :nth-child(1) { animation-delay: 0ms; }
+.bar-deal > :nth-child(2) { animation-delay: 45ms; }
+.bar-deal > :nth-child(3) { animation-delay: 90ms; }
+.bar-deal > :nth-child(4) { animation-delay: 135ms; }
+.bar-deal > :nth-child(5) { animation-delay: 180ms; }
+.bar-deal > :nth-child(6) { animation-delay: 225ms; }
+.bar-deal > :nth-child(7) { animation-delay: 270ms; }
+.bar-deal > :nth-child(8) { animation-delay: 315ms; }
+
+.bento-arrive > * { animation: tile-arrive 500ms var(--ease-out-quint) backwards; }
+.bento-arrive > :nth-child(1) { animation-delay: 150ms; }
+.bento-arrive > :nth-child(2) { animation-delay: 190ms; }
+.bento-arrive > :nth-child(3) { animation-delay: 230ms; }
+.bento-arrive > :nth-child(4) { animation-delay: 270ms; }
+.bento-arrive > :nth-child(5) { animation-delay: 310ms; }
+.bento-arrive > :nth-child(6) { animation-delay: 350ms; }
+
+@keyframes swatch-deal {
+  from { opacity: 0; transform: translate3d(0, 38px, 0); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes tile-arrive {
+  from { opacity: 0; transform: translate3d(0, 12px, 0); }
+  to   { opacity: 1; transform: none; }
+}
+
+.score-pop { animation: none; }
+  .bento-repaint > * { animation: none; }
+}
+
+/* ---------------------------------------------------------------
+   Scroll reveals. The armed class is added by JS, so the default
+   state of every section is fully visible — a headless render or a
+   blocked script ships the content, not a blank page.
+   --------------------------------------------------------------- */
+.reveal-armed {
+  opacity: 0;
+  transform: translate3d(0, 16px, 0);
+  transition:
+    opacity 700ms var(--ease-out-quint),
+    transform 700ms var(--ease-out-quint);
+  will-change: opacity, transform;
+}
+
+.reveal-in {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal-armed {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---------------------------------------------------------------
+   The fan deck. Each chip is rotated to its own angle by a custom
+   property, and drifts a degree and a half either side of it — slow
+   enough to read as alive rather than as movement competing with
+   the headline next to it.
+   --------------------------------------------------------------- */
+.chip-fan .chip {
+  transform: rotate(var(--a));
+  animation: chip-drift 9s ease-in-out infinite alternate;
+}
+
+@keyframes chip-drift {
+  from { transform: rotate(calc(var(--a) - 1.6deg)); }
+  to   { transform: rotate(calc(var(--a) + 1.6deg)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chip-fan .chip {
+    animation: none;
+  }
+}
+
+/* ---------------------------------------------------------------
+   Entry sequence. A curtain in front of a page that is already
+   complete — never a gate in place of one. Under reduced motion
+   the component does not mount at all, so none of this runs.
+   --------------------------------------------------------------- */
+.preload {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background: var(--bg);
+  transition:
+    opacity 520ms var(--ease-out-quint),
+    visibility 520ms;
+}
+
+/* Collapsing up toward the wordmark, which is where the fan lives next.
+   The deck's board is square with the rivet in the middle of it, so the fan
+   itself fills only the upper half: the width is set from the fan rather than
+   from the board, and the empty lower half is pulled back out of the column so
+   the wordmark still sits under the deck rather than under the board. */
+.preload-fan {
+  width: min(440px, 88vw);
+  transform-origin: 50% 50%;
+  animation: preload-turn 1100ms var(--ease-out-quint) both;
+  transition: transform 560ms cubic-bezier(0.7, 0, 0.84, 0);
+}
+/* A percentage margin resolves against the containing block's width, so this
+   is the empty half of the board expressed as a fraction of the board and it
+   scales with it. Nothing is clipped — the box just stops reserving room the
+   deck does not use. */
+.preload-fan svg {
+  display: block;
+  margin-bottom: -44%;
+}
+
+.preload-word {
+  font-size: clamp(30px, 7vw, 46px);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  min-height: 1em;
+}
+
+.preload-caret {
+  display: inline-block;
+  width: 3px;
+  height: 0.78em;
+  margin-left: 3px;
+  vertical-align: -0.06em;
+  background: var(--accent);
+  animation: preload-blink 620ms steps(1) infinite;
+}
+
+.preload-out {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.preload-out .preload-fan {
+  transform: translate3d(calc(-50vw + 116px), calc(-50vh + 34px), 0) scale(0.05);
+}
+
+@keyframes preload-turn {
+  from {
+    opacity: 0;
+    transform: rotate(-15deg) scale(0.82);
+    filter: blur(9px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: blur(0);
+  }
+}
+
+@keyframes preload-blink {
+  50% { opacity: 0; }
+}
+
+/* ---------------------------------------------------------------
+   The fan deals itself in — chips arriving one at a time, the way
+   a deck gets laid out. `backwards` holds the off-screen state
+   through the stagger delay, so nothing flashes before its turn.
+   --------------------------------------------------------------- */
+.chip-deal {
+  animation: chip-deal 700ms var(--ease-out-quint) backwards;
+}
+
+@keyframes chip-deal {
+  from { opacity: 0; transform: translate3d(0, 92px, 0); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ---------------------------------------------------------------
+   Scroll entrances. All of them are opacity + transform only, and
+   all of them default to the *finished* state — the class that
+   hides an element is only ever added once JS has confirmed it
+   will also be the thing that shows it again.
+   --------------------------------------------------------------- */
+.enter-l,
+.enter-r,
+.enter-up {
+  opacity: 0;
+  transition:
+    opacity 760ms var(--ease-out-quint),
+    transform 760ms var(--ease-out-quint);
+  will-change: opacity, transform;
+}
+
+.enter-l  { transform: translate3d(-48px, 0, 0); }
+.enter-r  { transform: translate3d(48px, 0, 0); }
+.enter-up { transform: translate3d(0, 14px, 0); }
+
+.entered {
+  opacity: 1;
+  transform: none;
+}
+
+/* A ruler being laid down between the two cards. */
+.rule-grow {
+  transform: scaleX(0);
+  transform-origin: 50% 50%;
+  transition: transform 900ms 240ms var(--ease-out-quint);
+}
+.rule-grow.entered { transform: scaleX(1); }
+
+/* The number lands like a stamp: overshoot, then settle. */
+.stamp {
+  opacity: 0;
+  transform: scale(0.72);
+  transition:
+    opacity 380ms var(--ease-out-quint),
+    transform 620ms cubic-bezier(0.34, 1.48, 0.5, 1);
+}
+.stamp.entered { opacity: 1; transform: none; }
+
+/* The critique notes' left rule grows to full height as each arrives. */
+.note-rule::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  border-radius: 3px;
+  background: var(--muted);
+  transform: scaleY(0);
+  transform-origin: 50% 0;
+  transition: transform 520ms var(--ease-out-quint);
+}
+.note-rule.entered::before { transform: scaleY(1); }
+
+/* Swatches laid down left to right; SVG parts fading in on a stagger. */
+.lay-in {
+  opacity: 0;
+  transform: scale(0.86);
+  transition:
+    opacity 420ms var(--ease-out-quint),
+    transform 420ms var(--ease-out-quint);
+}
+.lay-in-on { opacity: 1; transform: none; }
+
+.plot-fade { transition: opacity 420ms var(--ease-out-quint); }
+.plot-draw { transition: stroke-dashoffset 1100ms 240ms var(--ease-out-quint); }
+
+/* The CTA dropped on the table rather than aligned to it. */
+.tilt-in {
+  transform: rotate(0deg);
+  transition: transform 900ms var(--ease-out-quint);
+}
+@media (min-width: 900px) {
+  .tilt-in.entered { transform: rotate(-1.2deg); }
+}
+
+/* ---------------------------------------------------------------
+   Paper grain. Composited over a fill, never under text that is
+   sitting near its contrast threshold — the ink beneath it is
+   derived at 5:1 rather than 4.5:1 to pay for the perturbation.
+   --------------------------------------------------------------- */
+.paper-noise::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0.055;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+  -webkit-mask-image: radial-gradient(120% 110% at 50% 0%, #000 20%, transparent 100%);
+  mask-image: radial-gradient(120% 110% at 50% 0%, #000 20%, transparent 100%);
+}
+
+/* ---------------------------------------------------------------
+   The geometry disclosure. Every word of the gamut section is
+   still here — it just is not in the way of people who came for
+   the shorter version.
+   --------------------------------------------------------------- */
+.geometry > summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 14px;
+  padding: 12px 16px;
+  background: var(--surface);
+  font-size: 15px;
+  font-weight: 500;
+}
+.geometry > summary::-webkit-details-marker { display: none; }
+.geometry > summary::before {
+  content: "↓";
+  font-family: var(--font-mono);
+  font-size: 13px;
+  transition: transform 240ms var(--ease-out-quint);
+}
+.geometry[open] > summary::before { transform: rotate(180deg); }
+
+@media (prefers-reduced-motion: reduce) {
+  .chip-deal { animation: none; }
+  .enter-l,
+  .enter-r,
+  .enter-up,
+  .stamp,
+  .lay-in { opacity: 1; transform: none; }
+  .rule-grow { transform: scaleX(1); }
+  .note-rule::before { transform: scaleY(1); }
+  .tilt-in.entered { transform: none; }
+}
